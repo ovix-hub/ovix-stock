@@ -1,148 +1,323 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <title>Control de Stock & Impresiones 3D</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body class="light">
-  <div class="container">
-    <header class="header">
-      <h1>Control de Stock & Impresiones 3D</h1>
-      <button id="themeToggle" class="btn toggle">Modo Claro / Oscuro</button>
-    </header>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OvixParts3D - 3D Part Manager by Ovix</title>
+<style>
+:root {
+  --bg-light: #f5f6fa;
+  --bg-dark: #1f1f1f;
+  --text-light: #1e1e1e;
+  --text-dark: #f0f0f0;
+  --accent: #00adb5;
+  --accent-hover: #06b9c5;
+  --card-light: #ffffff;
+  --card-dark: #2a2a2a;
+  --shadow: 0 2px 8px rgba(0,0,0,0.1);
+  --divider: rgba(0,173,181,0.25);
+}
 
-    <!-- Filtros -->
-    <section class="filters">
-      <input type="text" id="filterPiece" placeholder="🔍 Buscar pieza…" />
-      <select id="filterPrinter">
-        <option value="">Todas las impresoras</option>
-      </select>
-      <select id="filterStatus">
-        <option value="">Todos los estados</option>
-        <option value="Ok">Ok</option>
+body {
+  font-family: "Inter", sans-serif;
+  margin: 0;
+  background: var(--bg-light);
+  color: var(--text-light);
+  transition: background 0.3s, color 0.3s;
+}
+body.dark { background: var(--bg-dark); color: var(--text-dark); }
+
+.container { max-width: 1200px; margin: 2rem auto; padding: 1rem; }
+.header { text-align: center; margin-bottom: 1rem; }
+.header img { width: 280px; transition: filter 0.3s; }
+body.dark .header img { filter: invert(1); }
+.header h1 { color: var(--accent); margin: 0.3rem 0; }
+.header h2 { font-weight: normal; color: gray; margin-top: 0; }
+.divider { width: 80%; height: 1px; background: var(--divider); margin: 0 auto 1.5rem; }
+
+.btn {
+  border: none; border-radius: 6px;
+  padding: 0.5rem 1rem; cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  font-size: 0.9rem;
+}
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.primary:hover { background: var(--accent-hover); transform: scale(1.04); }
+.btn.secondary {
+  background: transparent; border: 1px solid var(--accent); color: var(--accent);
+}
+.btn.secondary:hover { background: rgba(0,173,181,0.08); }
+
+.form-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem; margin-bottom: 1rem;
+}
+label { font-size: 0.85rem; font-weight: 500; display: block; margin-bottom: 4px; }
+input, select {
+  width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 6px;
+  font-size: 0.9rem; box-sizing: border-box;
+}
+input:focus, select:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 4px rgba(0,173,181,0.3);
+}
+
+table {
+  width: 100%; border-collapse: collapse; margin-top: 1rem;
+  background: var(--card-light); border-radius: 6px; box-shadow: var(--shadow);
+  overflow: hidden;
+}
+body.dark table { background: var(--card-dark); }
+th { background: var(--accent); color: white; font-weight: 600; }
+th, td { padding: 0.7rem; text-align: center; border-bottom: 1px solid #ccc; }
+tr:hover { background: rgba(0,173,181,0.05); }
+body.dark tr:hover { background: rgba(255,255,255,0.05); }
+
+.catalog {
+  margin-top: 2rem; padding: 1.2rem; border-radius: 8px;
+  background: var(--card-light); box-shadow: var(--shadow);
+  position: relative;
+}
+body.dark .catalog { background: var(--card-dark); }
+#catalogCount { position: absolute; top: 10px; right: 15px; font-size: 0.85rem; color: gray; }
+#catalogList li { padding: 6px 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
+body.dark #catalogList li { border-color: rgba(255,255,255,0.1); }
+
+footer {
+  text-align: center; color: #888; margin-top: 2rem;
+  border-top: 1px solid var(--divider); padding-top: 1rem; font-size: 0.9rem;
+}
+body.dark footer { color: #bbb; border-color: rgba(255,255,255,0.2); }
+</style>
+</head>
+
+<body>
+<div class="container">
+  <div class="header">
+    <img src="ovix-logo.png" alt="Ovix Logo" />
+    <h1>OvixParts3D</h1>
+    <h2>3D Part Manager – by Ovix</h2>
+    <button id="themeToggle" class="btn primary">🌗 Modo</button>
+  </div>
+  <div class="divider"></div>
+
+  <!-- ====== FORMULARIO PRINCIPAL ====== -->
+  <form id="stockForm" class="form-grid">
+    <div><label>Pieza</label><input id="name" list="catalogListInput" required /></div>
+    <div><label>Material</label><input list="materialList" id="material" /></div>
+    <div><label>Color a imprimir</label><input list="colorList" id="colorPrint" /></div>
+    <div><label>Cantidad a imprimir</label><input type="number" id="qtyPrint" min="0" /></div>
+    <div><label>Color en stock</label><input list="colorList" id="colorStock" /></div>
+    <div><label>Cantidad en stock</label><input type="number" id="qtyStock" min="0" /></div>
+    <div><label>Estado</label>
+      <select id="status" required>
+        <option value="">Seleccionar...</option>
+        <option value="OK">OK</option>
         <option value="Reponer">Reponer</option>
       </select>
-      <button id="clearFilters" class="btn small">Limpiar filtros</button>
-    </section>
+    </div>
+    <div><label>Impresora</label><input list="printerList" id="printer" /></div>
+    <div><label>Observaciones</label><input id="observaciones" /></div>
+    <div style="align-self: end;"><button type="submit" class="btn primary" id="submitBtn">➕ Agregar</button></div>
+  </form>
 
-    <!-- Formulario -->
-    <form id="stockForm" class="form-grid">
-      <div class="form-group">
-        <label for="name">Pieza</label>
-        <select id="name" required></select>
-      </div>
+  <datalist id="materialList"><option value="PLA"><option value="ABS"><option value="PETG"><option value="FLEX"></datalist>
+  <datalist id="colorList"><option value="Negro"><option value="Blanco"><option value="Aqua"><option value="Rosa"><option value="Violeta"><option value="Multicolor"><option value="Natural"><option value="Otro"></datalist>
+  <datalist id="printerList"><option value="Prusa Mini"><option value="Prusa MK3"><option value="Ender 3 S1 Pro"><option value="Ender 3 V3 Plus"><option value="Ender 3 V2"><option value="CR10 SPRO"><option value="CR10 MAX"><option value="K1C"></datalist>
+  <datalist id="catalogListInput"></datalist>
 
-      <div class="form-group">
-        <label for="material">Material</label>
-        <select id="material" required>
-          <option value="">Material</option>
-          <option>PLA</option>
-          <option>ABS</option>
-          <option>PETG</option>
-        </select>
-      </div>
+  <table>
+    <thead>
+      <tr><th>Pieza</th><th>Material</th><th>Color Imp</th><th>Cant Imp</th>
+      <th>Color Stk</th><th>Cant Stk</th><th>Estado</th><th>Impresora</th><th>Fecha</th><th>Acciones</th></tr>
+    </thead>
+    <tbody id="stockBody"></tbody>
+  </table>
 
-      <div class="form-group">
-        <label for="colorPrint">Color a imprimir</label>
-        <select id="colorPrint" required>
-          <option value="">Color a imprimir</option>
-          <option>Negro</option>
-          <option>Blanco</option>
-          <option>Aqua</option>
-          <option>Rosa</option>
-          <option>Natural</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="qtyPrint">Cant. a imprimir</label>
-        <input type="number" id="qtyPrint" min="0" placeholder="0" required />
-      </div>
-
-      <div class="form-group">
-        <label for="colorStock">Color en stock</label>
-        <select id="colorStock" required>
-          <option value="">Color en stock</option>
-          <option>Negro</option>
-          <option>Blanco</option>
-          <option>Aqua</option>
-          <option>Rosa</option>
-          <option>Natural</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="qtyStock">Cant. en stock</label>
-        <input type="number" id="qtyStock" min="0" placeholder="0" required />
-      </div>
-
-      <div class="form-group">
-        <label for="status">Estado</label>
-        <select id="status" required>
-          <option value="Ok">Ok</option>
-          <option value="Reponer">Reponer</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="printer">Impresora</label>
-        <select id="printer" required>
-          <option value="">Impresora</option>
-          <option>Ender 3 v3 PLUS</option>
-          <option>Ender 3 S1 Pro</option>
-          <option>Ender 3 V2</option>
-          <option>CR10 SPRO</option>
-          <option>Prusa Mk3</option>
-          <option>Prusa Mini</option>
-          <option>CR10 MAX</option>
-          <option>K1C</option>
-        </select>
-      </div>
-
-      <div class="form-group full-width">
-        <button type="submit" class="btn primary">Agregar pieza</button>
-      </div>
+  <!-- ====== CATÁLOGO ====== -->
+  <div class="catalog">
+    <h2>📦 Catálogo de Piezas</h2><span id="catalogCount"></span>
+    <form id="catalogForm" class="form-grid">
+      <div><label>Nueva pieza</label><input type="text" id="newPieceName" required /></div>
+      <div><button type="submit" class="btn primary">➕ Agregar</button></div>
+      <div><button type="button" id="resetCatalogBtn" class="btn secondary">🔄 Resetear catálogo</button></div>
     </form>
-
-    <!-- Acciones -->
-    <div class="actions">
-      <button onclick="exportToCSV()" class="btn secondary">📤 Exportar Pedido de Reposición</button>
-    </div>
-
-    <!-- Tabla -->
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>Pieza</th>
-            <th>Material</th>
-            <th>Color Impresión</th>
-            <th>Color Stock</th>
-            <th>Qty Impresión</th>
-            <th>Qty Stock</th>
-            <th>Estado</th>
-            <th>Impresora</th>
-            <th>Fecha</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody id="stockBody"></tbody>
-      </table>
-    </div>
-
-    <!-- Catálogo -->
-    <section class="catalog">
-      <h2>Catálogo de Piezas</h2>
-      <form id="catalogForm" class="catalog-form">
-        <input type="text" id="newPieceName" placeholder="Nueva pieza" required />
-        <button type="submit" class="btn primary small">Agregar</button>
-      </form>
-      <ul id="catalogList" class="catalog-list"></ul>
-    </section>
+    <div><label>Buscar</label><input type="text" id="searchCatalog" placeholder="Buscar en catálogo..." /></div>
+    <ul id="catalogList"></ul>
   </div>
 
-  <script src="script.js"></script>
+  <footer>© 2025 Ovix — Innovación y Comunidad Maker</footer>
+</div>
+
+<script>
+// === THEME MODE ===
+const themeToggle = document.getElementById("themeToggle");
+const body = document.body;
+if (localStorage.getItem("theme") === "dark") body.classList.add("dark");
+themeToggle.addEventListener("click", () => {
+  body.classList.toggle("dark");
+  localStorage.setItem("theme", body.classList.contains("dark") ? "dark" : "light");
+});
+
+// === REFERENCIAS ===
+const form = document.getElementById("stockForm");
+const stockBody = document.getElementById("stockBody");
+const submitBtn = document.getElementById("submitBtn");
+
+const nameInput = document.getElementById("name");
+const material = document.getElementById("material");
+const colorPrint = document.getElementById("colorPrint");
+const qtyPrint = document.getElementById("qtyPrint");
+const colorStock = document.getElementById("colorStock");
+const qtyStock = document.getElementById("qtyStock");
+const statusSel = document.getElementById("status");
+const printer = document.getElementById("printer");
+const observaciones = document.getElementById("observaciones");
+
+// === CATÁLOGO ===
+const defaultCatalog = [
+"base-aut","base-conducida-mk","base-husillo-mk","brazo-mk","cono-49-mk",
+"contrapeso-mk9","contrapeso-mkm","disco-mk","espa-07mm","espa-4mm","espa-6mm",
+"gabinete-contador","gabinete-mk7","gabinete-mk9","gabinete-mk9-plus","guia-bronce-mk",
+"husillo-mk","manibela-mkm","orring-236","orring-259","perilla-mkm","pie-aut","pie-mkm",
+"polea-mkm","polea-motor","resorte-mk","sop-guia-mk9","sop-guia-mkm","sop-prensahilo-mk",
+"tapon-m8corto-mkm","tapon-m8largo-mkm"
+];
+
+let catalog = JSON.parse(localStorage.getItem("catalog")) || [...defaultCatalog];
+const catalogList = document.getElementById("catalogList");
+const catalogCount = document.getElementById("catalogCount");
+const datalistInput = document.getElementById("catalogListInput");
+
+function renderCatalog(filter = "") {
+  catalogList.innerHTML = "";
+  datalistInput.innerHTML = "";
+  catalog
+    .filter(c => c.toLowerCase().includes(filter.toLowerCase()))
+    .sort((a, b) => a.localeCompare(b))
+    .forEach(p => {
+      const li = document.createElement("li");
+      li.textContent = p;
+      catalogList.appendChild(li);
+      const opt = document.createElement("option");
+      opt.value = p;
+      datalistInput.appendChild(opt);
+    });
+  catalogCount.textContent = `${catalog.length} piezas registradas`;
+}
+
+document.getElementById("catalogForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const name = document.getElementById("newPieceName").value.trim();
+  if (name && !catalog.includes(name)) {
+    catalog.push(name);
+    localStorage.setItem("catalog", JSON.stringify(catalog));
+    renderCatalog();
+  }
+  e.target.reset();
+});
+
+document.getElementById("resetCatalogBtn").addEventListener("click", () => {
+  if (confirm("¿Resetear catálogo al listado base?")) {
+    catalog = [...defaultCatalog];
+    localStorage.setItem("catalog", JSON.stringify(catalog));
+    renderCatalog();
+  }
+});
+document.getElementById("searchCatalog").addEventListener("input", e => renderCatalog(e.target.value));
+
+// === STOCK ===
+let stockData = JSON.parse(localStorage.getItem("stockData")) || [];
+let editIndex = null;
+
+function renderTable() {
+  stockBody.innerHTML = "";
+  stockData.forEach((item, i) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+<td>${item.name}</td><td>${item.material}</td><td>${item.colorPrint}</td>
+<td>${item.qtyPrint}</td><td>${item.colorStock}</td><td>${item.qtyStock}</td>
+<td>${item.status}</td><td>${item.printer}</td><td>${item.date}</td>
+<td>
+  <button onclick="verDetalle(${i})" class='btn secondary'>🔍</button>
+  <button onclick="editarItem(${i})" class='btn secondary'>✏️</button>
+  <button onclick="deleteItem(${i})" class='btn secondary'>❌</button>
+</td>`;
+    stockBody.appendChild(row);
+  });
+}
+
+window.verDetalle = i => {
+  const item = stockData[i];
+  alert(`Pieza: ${item.name}
+Material: ${item.material}
+Color impresión: ${item.colorPrint}
+Color stock: ${item.colorStock}
+Cant. impresa: ${item.qtyPrint}
+Cant. stock: ${item.qtyStock}
+Estado: ${item.status}
+Impresora: ${item.printer}
+Fecha: ${item.date}
+Observaciones: ${item.observaciones || "Sin observaciones"}`);
+};
+
+window.editarItem = i => {
+  const item = stockData[i];
+  editIndex = i;
+  nameInput.value = item.name;
+  material.value = item.material;
+  colorPrint.value = item.colorPrint;
+  qtyPrint.value = item.qtyPrint;
+  colorStock.value = item.colorStock;
+  qtyStock.value = item.qtyStock;
+  statusSel.value = item.status;
+  printer.value = item.printer;
+  observaciones.value = item.observaciones || "";
+  submitBtn.textContent = "💾 Guardar";
+};
+
+window.deleteItem = i => {
+  if (confirm("¿Eliminar este registro?")) {
+    stockData.splice(i, 1);
+    localStorage.setItem("stockData", JSON.stringify(stockData));
+    renderTable();
+  }
+};
+
+form.addEventListener("submit", e => {
+  e.preventDefault();
+
+  const item = {
+    name: nameInput.value.trim(),
+    material: material.value.trim(),
+    colorPrint: colorPrint.value.trim(),
+    qtyPrint: +qtyPrint.value || 0,
+    colorStock: colorStock.value.trim(),
+    qtyStock: +qtyStock.value || 0,
+    status: statusSel.value,
+    printer: printer.value.trim(),
+    observaciones: observaciones.value.trim(),
+    date: new Date().toLocaleDateString("es-AR")
+  };
+
+  if (!item.name) return alert("Debe ingresar una pieza válida.");
+  if (!item.status) return alert("Debe seleccionar un estado.");
+
+  if (editIndex !== null) {
+    stockData[editIndex] = item;
+    editIndex = null;
+    submitBtn.textContent = "➕ Agregar";
+  } else {
+    stockData.push(item);
+  }
+
+  localStorage.setItem("stockData", JSON.stringify(stockData));
+  form.reset();
+  renderTable();
+});
+
+renderCatalog();
+renderTable();
+</script>
 </body>
 </html>

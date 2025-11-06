@@ -134,6 +134,12 @@ body.dark footer { color: #bbb; border-color: rgba(255,255,255,0.2); }
     <tbody id="stockBody"></tbody>
   </table>
 
+  <!-- ====== EXPORTACIÓN ====== -->
+  <div style="margin-top:1.5rem;">
+    <button id="exportStockBtn" class="btn secondary">📤 Exportar stock</button>
+    <button id="exportCatalogBtn" class="btn secondary">📤 Exportar catálogo</button>
+  </div>
+
   <!-- ====== CATÁLOGO ====== -->
   <div class="catalog">
     <h2>📦 Catálogo de Piezas</h2><span id="catalogCount"></span>
@@ -150,7 +156,7 @@ body.dark footer { color: #bbb; border-color: rgba(255,255,255,0.2); }
 </div>
 
 <script>
-// === THEME MODE ===
+// === MODO OSCURO ===
 const themeToggle = document.getElementById("themeToggle");
 const body = document.body;
 if (localStorage.getItem("theme") === "dark") body.classList.add("dark");
@@ -183,7 +189,6 @@ const defaultCatalog = [
 "polea-mkm","polea-motor","resorte-mk","sop-guia-mk9","sop-guia-mkm","sop-prensahilo-mk",
 "tapon-m8corto-mkm","tapon-m8largo-mkm"
 ];
-
 let catalog = JSON.parse(localStorage.getItem("catalog")) || [...defaultCatalog];
 const catalogList = document.getElementById("catalogList");
 const catalogCount = document.getElementById("catalogCount");
@@ -216,7 +221,6 @@ document.getElementById("catalogForm").addEventListener("submit", e => {
   }
   e.target.reset();
 });
-
 document.getElementById("resetCatalogBtn").addEventListener("click", () => {
   if (confirm("¿Resetear catálogo al listado base?")) {
     catalog = [...defaultCatalog];
@@ -314,6 +318,46 @@ form.addEventListener("submit", e => {
   localStorage.setItem("stockData", JSON.stringify(stockData));
   form.reset();
   renderTable();
+});
+
+// === EXPORTAR ===
+function exportCSV(filename, data) {
+  const csvRows = [];
+  const headers = Object.keys(data[0]);
+  csvRows.push(headers.join(","));
+  for (const row of data) {
+    const values = headers.map(h => `"${String(row[h] ?? "").replace(/"/g, '""')}"`);
+    csvRows.push(values.join(","));
+  }
+  const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+  const file = new File([blob], filename, { type: "text/csv" });
+
+  if (navigator.share) {
+    navigator.share({
+      title: filename,
+      text: "Archivo exportado desde OvixParts3D",
+      files: [file]
+    }).catch(console.error);
+  } else {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+}
+
+document.getElementById("exportStockBtn").addEventListener("click", () => {
+  if (stockData.length === 0) return alert("No hay datos en el stock para exportar.");
+  exportCSV(`stock-ovix-${new Date().toLocaleDateString("es-AR")}.csv`, stockData);
+});
+document.getElementById("exportCatalogBtn").addEventListener("click", () => {
+  if (catalog.length === 0) return alert("El catálogo está vacío.");
+  const catalogData = catalog.map(c => ({ pieza: c }));
+  exportCSV(`catalogo-ovix-${new Date().toLocaleDateString("es-AR")}.csv`, catalogData);
 });
 
 renderCatalog();

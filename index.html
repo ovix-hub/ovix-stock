@@ -138,6 +138,7 @@ body.dark footer { color: #bbb; border-color: rgba(255,255,255,0.2); }
   <div style="margin-top:1.5rem;">
     <button id="exportStockBtn" class="btn secondary">📤 Exportar stock</button>
     <button id="exportCatalogBtn" class="btn secondary">📤 Exportar catálogo</button>
+    <button id="exportTextBtn" class="btn secondary">💬 Exportar texto</button>
   </div>
 
   <!-- ====== CATÁLOGO ====== -->
@@ -253,7 +254,7 @@ function renderTable() {
 
 window.verDetalle = i => {
   const item = stockData[i];
-  alert(`Pieza: ${item.name}
+  alert(`📦 Pieza: ${item.name}
 Material: ${item.material}
 Color impresión: ${item.colorPrint}
 Color stock: ${item.colorStock}
@@ -320,7 +321,7 @@ form.addEventListener("submit", e => {
   renderTable();
 });
 
-// === EXPORTAR ===
+// === EXPORTAR CSV ===
 function exportCSV(filename, data) {
   const csvRows = [];
   const headers = Object.keys(data[0]);
@@ -350,6 +351,34 @@ function exportCSV(filename, data) {
   }
 }
 
+// === EXPORTAR TEXTO ===
+function exportText() {
+  if (stockData.length === 0) return alert("No hay datos para exportar.");
+  const fecha = new Date().toLocaleDateString("es-AR");
+  const texto = stockData.map(item => 
+`📦 Pieza: ${item.name}
+Material: ${item.material}
+Estado: ${item.status}
+Stock: ${item.qtyStock} unidades
+Color stock: ${item.colorStock}
+Impresora: ${item.printer}
+🕓 ${item.date}
+${item.observaciones ? "📝 " + item.observaciones : ""}
+──────────────────────────────`
+  ).join("\n");
+
+  if (navigator.share) {
+    navigator.share({
+      title: `Stock Ovix ${fecha}`,
+      text: texto
+    }).catch(console.error);
+  } else {
+    navigator.clipboard.writeText(texto);
+    alert("Texto copiado al portapapeles ✅");
+  }
+}
+
+// === BOTONES EXPORTACIÓN ===
 document.getElementById("exportStockBtn").addEventListener("click", () => {
   if (stockData.length === 0) return alert("No hay datos en el stock para exportar.");
   exportCSV(`stock-ovix-${new Date().toLocaleDateString("es-AR")}.csv`, stockData);
@@ -359,7 +388,9 @@ document.getElementById("exportCatalogBtn").addEventListener("click", () => {
   const catalogData = catalog.map(c => ({ pieza: c }));
   exportCSV(`catalogo-ovix-${new Date().toLocaleDateString("es-AR")}.csv`, catalogData);
 });
+document.getElementById("exportTextBtn").addEventListener("click", exportText);
 
+// === INICIO ===
 renderCatalog();
 renderTable();
 </script>

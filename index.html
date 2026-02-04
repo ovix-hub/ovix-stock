@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>OvixParts3D - 3D Part Manager by Ovix</title>
+<title>OvixParts3D - Stock Relevamiento</title>
 <style>
 :root {
   --bg-light: #f5f6fa;
@@ -62,6 +62,8 @@ input:focus, select:focus {
   box-shadow: 0 0 4px rgba(0,173,181,0.3);
 }
 
+.small-note { font-size: 0.8rem; color: gray; margin-top: 6px; }
+
 table {
   width: 100%; border-collapse: collapse; margin-top: 1rem;
   background: var(--card-light); border-radius: 6px; box-shadow: var(--shadow);
@@ -83,11 +85,23 @@ body.dark .catalog { background: var(--card-dark); }
 #catalogList li { padding: 6px 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
 body.dark #catalogList li { border-color: rgba(255,255,255,0.1); }
 
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  border: 1px solid rgba(0,173,181,0.35);
+  color: var(--accent);
+  margin-right: 8px;
+}
+
 footer {
   text-align: center; color: #888; margin-top: 2rem;
   border-top: 1px solid var(--divider); padding-top: 1rem; font-size: 0.9rem;
 }
 body.dark footer { color: #bbb; border-color: rgba(255,255,255,0.2); }
+
+.hidden { display: none !important; }
 </style>
 </head>
 
@@ -96,40 +110,68 @@ body.dark footer { color: #bbb; border-color: rgba(255,255,255,0.2); }
   <div class="header">
     <img src="ovix-logo.png" alt="Ovix Logo" />
     <h1>OvixParts3D</h1>
-    <h2>3D Part Manager – by Ovix</h2>
+    <h2>Relevamiento de Stock – by Ovix</h2>
     <button id="themeToggle" class="btn primary">🌗 Modo</button>
   </div>
   <div class="divider"></div>
 
   <!-- ====== FORMULARIO PRINCIPAL ====== -->
   <form id="stockForm" class="form-grid">
-    <div><label>Pieza</label><input id="name" list="catalogListInput" required /></div>
+    <div>
+      <label>Categoría</label>
+      <select id="category" required>
+        <option value="">Seleccionar...</option>
+      </select>
+      <div class="small-note">Primero elegí el código (ACC, ELC, etc.).</div>
+    </div>
+
+    <div>
+      <label>Pieza</label>
+      <select id="pieceSelect" required disabled>
+        <option value="">Seleccionar categoría primero...</option>
+      </select>
+      <div class="small-note">Filtrado por categoría. Podés elegir “Otro”.</div>
+    </div>
+
+    <div id="customPieceWrap" class="hidden">
+      <label>Nombre de pieza (Otro)</label>
+      <input id="customPiece" placeholder="Ej: torn-m5x40" />
+      <div class="small-note">Se guarda en el catálogo con la categoría elegida.</div>
+    </div>
+
     <div><label>Material</label><input list="materialList" id="material" /></div>
     <div><label>Color a imprimir</label><input list="colorList" id="colorPrint" /></div>
     <div><label>Cantidad a imprimir</label><input type="number" id="qtyPrint" min="0" /></div>
     <div><label>Color en stock</label><input list="colorList" id="colorStock" /></div>
     <div><label>Cantidad en stock</label><input type="number" id="qtyStock" min="0" /></div>
-    <div><label>Estado</label>
+
+    <div>
+      <label>Estado</label>
       <select id="status" required>
         <option value="">Seleccionar...</option>
         <option value="OK">OK</option>
         <option value="Reponer">Reponer</option>
       </select>
     </div>
+
     <div><label>Impresora</label><input list="printerList" id="printer" /></div>
     <div><label>Observaciones</label><input id="observaciones" /></div>
-    <div style="align-self: end;"><button type="submit" class="btn primary" id="submitBtn">➕ Agregar</button></div>
+
+    <div style="align-self: end;">
+      <button type="submit" class="btn primary" id="submitBtn">➕ Agregar</button>
+    </div>
   </form>
 
   <datalist id="materialList"><option value="PLA"><option value="ABS"><option value="PETG"><option value="FLEX"></datalist>
   <datalist id="colorList"><option value="Negro"><option value="Blanco"><option value="Aqua"><option value="Rosa"><option value="Violeta"><option value="Multicolor"><option value="Natural"><option value="Otro"></datalist>
   <datalist id="printerList"><option value="Prusa Mini"><option value="Prusa MK3"><option value="Ender 3 S1 Pro"><option value="Ender 3 V3 Plus"><option value="Ender 3 V2"><option value="CR10 SPRO"><option value="CR10 MAX"><option value="K1C"></datalist>
-  <datalist id="catalogListInput"></datalist>
 
   <table>
     <thead>
-      <tr><th>Pieza</th><th>Material</th><th>Color Imp</th><th>Cant Imp</th>
-      <th>Color Stk</th><th>Cant Stk</th><th>Estado</th><th>Impresora</th><th>Fecha</th><th>Acciones</th></tr>
+      <tr>
+        <th>Cat</th><th>Pieza</th><th>Material</th><th>Color Imp</th><th>Cant Imp</th>
+        <th>Color Stk</th><th>Cant Stk</th><th>Estado</th><th>Impresora</th><th>Fecha</th><th>Acciones</th>
+      </tr>
     </thead>
     <tbody id="stockBody"></tbody>
   </table>
@@ -144,16 +186,31 @@ body.dark footer { color: #bbb; border-color: rgba(255,255,255,0.2); }
   <!-- ====== CATÁLOGO ====== -->
   <div class="catalog">
     <h2>📦 Catálogo de Piezas</h2><span id="catalogCount"></span>
+
     <form id="catalogForm" class="form-grid">
-      <div><label>Nueva pieza</label><input type="text" id="newPieceName" required /></div>
-      <div><button type="submit" class="btn primary">➕ Agregar</button></div>
-      <div><button type="button" id="resetCatalogBtn" class="btn secondary">🔄 Resetear catálogo</button></div>
+      <div>
+        <label>Categoría</label>
+        <select id="newPieceCat" required>
+          <option value="">Seleccionar...</option>
+        </select>
+      </div>
+      <div>
+        <label>Nueva pieza</label>
+        <input type="text" id="newPieceName" required placeholder="Ej: motor-775" />
+      </div>
+      <div style="align-self:end;">
+        <button type="submit" class="btn primary">➕ Agregar</button>
+      </div>
+      <div style="align-self:end;">
+        <button type="button" id="resetCatalogBtn" class="btn secondary">🔄 Resetear catálogo</button>
+      </div>
     </form>
-    <div><label>Buscar</label><input type="text" id="searchCatalog" placeholder="Buscar en catálogo..." /></div>
+
+    <div><label>Buscar</label><input type="text" id="searchCatalog" placeholder="Buscar por código o nombre..." /></div>
     <ul id="catalogList"></ul>
   </div>
 
-  <footer>© 2025 Ovix — Innovación y Comunidad Maker</footer>
+  <footer>© 2026 Ovix — porque contar stock a mano es una forma rara de sufrir</footer>
 </div>
 
 <script>
@@ -166,12 +223,16 @@ themeToggle.addEventListener("click", () => {
   localStorage.setItem("theme", body.classList.contains("dark") ? "dark" : "light");
 });
 
-// === REFERENCIAS ===
+// === REFERENCIAS FORM STOCK ===
 const form = document.getElementById("stockForm");
 const stockBody = document.getElementById("stockBody");
 const submitBtn = document.getElementById("submitBtn");
 
-const nameInput = document.getElementById("name");
+const categorySel = document.getElementById("category");
+const pieceSelect = document.getElementById("pieceSelect");
+const customPieceWrap = document.getElementById("customPieceWrap");
+const customPieceInput = document.getElementById("customPiece");
+
 const material = document.getElementById("material");
 const colorPrint = document.getElementById("colorPrint");
 const qtyPrint = document.getElementById("qtyPrint");
@@ -181,54 +242,252 @@ const statusSel = document.getElementById("status");
 const printer = document.getElementById("printer");
 const observaciones = document.getElementById("observaciones");
 
-// === CATÁLOGO ===
-const defaultCatalog = [
-"base-aut","base-conducida-mk","base-husillo-mk","brazo-mk","cono-49-mk",
-"contrapeso-mk9","contrapeso-mkm","disco-mk","espa-07mm","espa-4mm","espa-6mm",
-"gabinete-contador","gabinete-mk7","gabinete-mk9","gabinete-mk9-plus","guia-bronce-mk",
-"husillo-mk","manibela-mkm","orring-236","orring-259","perilla-mkm","pie-aut","pie-mkm",
-"polea-mkm","polea-motor","resorte-mk","sop-guia-mk9","sop-guia-mkm","sop-prensahilo-mk",
-"tapon-m8corto-mkm","tapon-m8largo-mkm"
+// === CATEGORÍAS ===
+const CATEGORIES = [
+  { code: "ACC", label: "ACC - Accesorios" },
+  { code: "ELC", label: "ELC - Eléctrico/Electrónica" },
+  { code: "EMP", label: "EMP - Embalaje" },
+  { code: "IMP", label: "IMP - Impresión 3D" },
+  { code: "LAS", label: "LAS - Corte Láser" },
+  { code: "MEC", label: "MEC - Mecánica" },
+  { code: "TOR", label: "TOR - Tornillería/Fijaciones" },
 ];
-let catalog = JSON.parse(localStorage.getItem("catalog")) || [...defaultCatalog];
+
+// Carga selects de categorías (stock y catálogo)
+function populateCategorySelect(selectEl) {
+  selectEl.innerHTML = `<option value="">Seleccionar...</option>`;
+  CATEGORIES.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = c.code;
+    opt.textContent = c.label;
+    selectEl.appendChild(opt);
+  });
+}
+populateCategorySelect(categorySel);
+populateCategorySelect(document.getElementById("newPieceCat"));
+
+// === CATÁLOGO (ahora con categoría + nombre) ===
+const defaultCatalog = [
+  { cat: "ACC", name: "oring-236" },
+  { cat: "ACC", name: "oring-259" },
+  { cat: "ACC", name: "oring-212" },
+  { cat: "ACC", name: "prensa-g60" },
+  { cat: "ACC", name: "perf-alum-mk11" },
+  { cat: "ACC", name: "base-madera-mkm" },
+  { cat: "ACC", name: "resorte-10mm" },
+  { cat: "ACC", name: "pintura-base" },
+
+  { cat: "ELC", name: "motor-775" },
+  { cat: "ELC", name: "pwm-control" },
+  { cat: "ELC", name: "fuente-12v7a" },
+  { cat: "ELC", name: "contador-yf16" },
+  { cat: "ELC", name: "sensor-njk" },
+  { cat: "ELC", name: "jackdc-panel" },
+  { cat: "ELC", name: "fusiblera-5x20" },
+  { cat: "ELC", name: "Interruptor 12v" },
+  { cat: "ELC", name: "fusible-4a" },
+  { cat: "ELC", name: "cables-1x1" },
+
+  { cat: "EMP", name: "caja-embalaje-mk9" },
+  { cat: "EMP", name: "caja-embalaje-mkm" },
+  { cat: "EMP", name: "plast-burbuja" },
+  { cat: "EMP", name: "film" },
+
+  { cat: "IMP", name: "base-conducida-mk" },
+  { cat: "IMP", name: "base-husillo-mk" },
+  { cat: "IMP", name: "brazo-mk" },
+  { cat: "IMP", name: "contrapeso-mkm" },
+  { cat: "IMP", name: "disco-45-mk" },
+  { cat: "IMP", name: "husillo-mkm" },
+  { cat: "IMP", name: "manibela-mkm" },
+  { cat: "IMP", name: "patas-mkm" },
+  { cat: "IMP", name: "polea-motor" },
+  { cat: "IMP", name: "sop-prensahilo-mk" },
+  { cat: "IMP", name: "sop-guia-mkm" },
+  { cat: "IMP", name: "cono-49-mk" },
+  { cat: "IMP", name: "contrapeso-mk9" },
+  { cat: "IMP", name: "espa-07mm" },
+  { cat: "IMP", name: "espa-4mm" },
+  { cat: "IMP", name: "espa-6mm" },
+  { cat: "IMP", name: "gabinete-mk9" },
+  { cat: "IMP", name: "perilla-ajuste-mk" },
+  { cat: "IMP", name: "polea-mkm" },
+  { cat: "IMP", name: "resorte" },
+  { cat: "IMP", name: "rulo-bronce" },
+  { cat: "IMP", name: "sop-guia-mk9" },
+  { cat: "IMP", name: "tapon-m8corto-mkm" },
+  { cat: "IMP", name: "sop-totora-mk7" },
+  { cat: "IMP", name: "tapon-m8largo-mkm" },
+
+  { cat: "LAS", name: "corte-laser-mk9" },
+
+  { cat: "MEC", name: "rod-606" },
+  { cat: "MEC", name: "rod-608" },
+
+  { cat: "TOR", name: "torn-m5x60" },
+  { cat: "TOR", name: "torn-m5x30" },
+  { cat: "TOR", name: "torn-ale-m5x20" },
+  { cat: "TOR", name: "torn-ale-m6x65" },
+  { cat: "TOR", name: "escuadra-sc25" },
+  { cat: "TOR", name: "pyton-5" },
+  { cat: "TOR", name: "tuerca-m3" },
+  { cat: "TOR", name: "tuerca-m5" },
+  { cat: "TOR", name: "tuerca-m5auto" },
+  { cat: "TOR", name: "tuerca-m6" },
+  { cat: "TOR", name: "tuerca-m6auto" },
+  { cat: "TOR", name: "tuerca-m8" },
+  { cat: "TOR", name: "tuerca-m8auto" },
+  { cat: "TOR", name: "parker-8mm" },
+  { cat: "TOR", name: "parker-19mm" },
+  { cat: "TOR", name: "parker-6mm" },
+  { cat: "TOR", name: "hojal-bronce" },
+  { cat: "TOR", name: "torn-cil-m3x30" },
+  { cat: "TOR", name: "torn-cil-m3x15" },
+  { cat: "TOR", name: "torn-cil-m3x10" },
+  { cat: "TOR", name: "torn-ale-m8x55" },
+  { cat: "TOR", name: "torn-ale-m8x20" },
+  { cat: "TOR", name: "grower-m5" },
+  { cat: "TOR", name: "arand-m8" },
+  { cat: "TOR", name: "varilla-m8" },
+  { cat: "TOR", name: "prision-m5x10" },
+
+  // extras del listado que sumaste al final
+  { cat: "IMP", name: "puntales-mk11" },
+  { cat: "IMP", name: "gabinete-mk11" },
+  { cat: "IMP", name: "tapones-alu-mk11" },
+];
+
+function normalizeCatalogItem(x) {
+  // Permite migrar desde el formato viejo (["pieza1","pieza2"]) si existiera en algún celu
+  if (typeof x === "string") return { cat: "IMP", name: x }; // fallback decente
+  return { cat: (x.cat || "").trim(), name: (x.name || "").trim() };
+}
+
+let catalog = (() => {
+  const raw = JSON.parse(localStorage.getItem("catalog")) || null;
+  if (!raw) return [...defaultCatalog];
+  const migrated = raw.map(normalizeCatalogItem).filter(i => i.cat && i.name);
+  // si está vacío por corrupción, volvemos a default
+  return migrated.length ? migrated : [...defaultCatalog];
+})();
+
 const catalogList = document.getElementById("catalogList");
 const catalogCount = document.getElementById("catalogCount");
-const datalistInput = document.getElementById("catalogListInput");
 
+// Render catálogo (lista)
 function renderCatalog(filter = "") {
+  const f = filter.trim().toLowerCase();
   catalogList.innerHTML = "";
-  datalistInput.innerHTML = "";
-  catalog
-    .filter(c => c.toLowerCase().includes(filter.toLowerCase()))
-    .sort((a, b) => a.localeCompare(b))
-    .forEach(p => {
-      const li = document.createElement("li");
-      li.textContent = p;
-      catalogList.appendChild(li);
-      const opt = document.createElement("option");
-      opt.value = p;
-      datalistInput.appendChild(opt);
-    });
+
+  const visible = catalog
+    .filter(i => {
+      const hay = `${i.cat} ${i.name}`.toLowerCase();
+      return hay.includes(f);
+    })
+    .sort((a, b) => (a.cat + a.name).localeCompare(b.cat + b.name));
+
+  visible.forEach(i => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="badge">${i.cat}</span>${escapeHtml(i.name)}`;
+    catalogList.appendChild(li);
+  });
+
   catalogCount.textContent = `${catalog.length} piezas registradas`;
 }
 
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, s => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+  }[s]));
+}
+
+function persistCatalog() {
+  localStorage.setItem("catalog", JSON.stringify(catalog));
+}
+
+// === SELECT PIEZAS FILTRADO POR CATEGORÍA ===
+function getPiecesByCategory(cat) {
+  return catalog
+    .filter(i => i.cat === cat)
+    .map(i => i.name)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function renderPieceSelect(cat) {
+  pieceSelect.innerHTML = "";
+  customPieceWrap.classList.add("hidden");
+  customPieceInput.value = "";
+
+  if (!cat) {
+    pieceSelect.disabled = true;
+    pieceSelect.innerHTML = `<option value="">Seleccionar categoría primero...</option>`;
+    return;
+  }
+
+  const pieces = getPiecesByCategory(cat);
+  pieceSelect.disabled = false;
+
+  const opt0 = document.createElement("option");
+  opt0.value = "";
+  opt0.textContent = "Seleccionar...";
+  pieceSelect.appendChild(opt0);
+
+  pieces.forEach(p => {
+    const opt = document.createElement("option");
+    opt.value = p;
+    opt.textContent = p;
+    pieceSelect.appendChild(opt);
+  });
+
+  const other = document.createElement("option");
+  other.value = "__OTHER__";
+  other.textContent = "✍️ Otro (escribir)";
+  pieceSelect.appendChild(other);
+}
+
+categorySel.addEventListener("change", () => {
+  renderPieceSelect(categorySel.value);
+});
+
+pieceSelect.addEventListener("change", () => {
+  if (pieceSelect.value === "__OTHER__") {
+    customPieceWrap.classList.remove("hidden");
+    customPieceInput.focus();
+  } else {
+    customPieceWrap.classList.add("hidden");
+    customPieceInput.value = "";
+  }
+});
+
+// === CATÁLOGO: agregar item ===
 document.getElementById("catalogForm").addEventListener("submit", e => {
   e.preventDefault();
+  const cat = document.getElementById("newPieceCat").value;
   const name = document.getElementById("newPieceName").value.trim();
-  if (name && !catalog.includes(name)) {
-    catalog.push(name);
-    localStorage.setItem("catalog", JSON.stringify(catalog));
-    renderCatalog();
+
+  if (!cat) return alert("Elegí una categoría.");
+  if (!name) return alert("Ingresá una pieza.");
+
+  const exists = catalog.some(i => i.cat === cat && i.name.toLowerCase() === name.toLowerCase());
+  if (!exists) {
+    catalog.push({ cat, name });
+    persistCatalog();
+    renderCatalog(document.getElementById("searchCatalog").value);
+    // si está seleccionada esa categoría en el form principal, refrescamos piezas
+    if (categorySel.value === cat) renderPieceSelect(cat);
   }
   e.target.reset();
 });
+
 document.getElementById("resetCatalogBtn").addEventListener("click", () => {
-  if (confirm("¿Resetear catálogo al listado base?")) {
+  if (confirm("¿Resetear catálogo al listado base? Esto borra agregados.")) {
     catalog = [...defaultCatalog];
-    localStorage.setItem("catalog", JSON.stringify(catalog));
+    persistCatalog();
     renderCatalog();
+    if (categorySel.value) renderPieceSelect(categorySel.value);
   }
 });
+
 document.getElementById("searchCatalog").addEventListener("input", e => renderCatalog(e.target.value));
 
 // === STOCK ===
@@ -240,9 +499,16 @@ function renderTable() {
   stockData.forEach((item, i) => {
     const row = document.createElement("tr");
     row.innerHTML = `
-<td>${item.name}</td><td>${item.material}</td><td>${item.colorPrint}</td>
-<td>${item.qtyPrint}</td><td>${item.colorStock}</td><td>${item.qtyStock}</td>
-<td>${item.status}</td><td>${item.printer}</td><td>${item.date}</td>
+<td>${escapeHtml(item.category || "")}</td>
+<td>${escapeHtml(item.name)}</td>
+<td>${escapeHtml(item.material)}</td>
+<td>${escapeHtml(item.colorPrint)}</td>
+<td>${item.qtyPrint}</td>
+<td>${escapeHtml(item.colorStock)}</td>
+<td>${item.qtyStock}</td>
+<td>${escapeHtml(item.status)}</td>
+<td>${escapeHtml(item.printer)}</td>
+<td>${escapeHtml(item.date)}</td>
 <td>
   <button onclick="verDetalle(${i})" class='btn secondary'>🔍</button>
   <button onclick="editarItem(${i})" class='btn secondary'>✏️</button>
@@ -255,6 +521,7 @@ function renderTable() {
 window.verDetalle = i => {
   const item = stockData[i];
   alert(`📦 Pieza: ${item.name}
+🏷️ Categoría: ${item.category || "-"}
 Material: ${item.material}
 Color impresión: ${item.colorPrint}
 Color stock: ${item.colorStock}
@@ -269,7 +536,22 @@ Observaciones: ${item.observaciones || "Sin observaciones"}`);
 window.editarItem = i => {
   const item = stockData[i];
   editIndex = i;
-  nameInput.value = item.name;
+
+  categorySel.value = item.category || "";
+  renderPieceSelect(categorySel.value);
+
+  // set pieza
+  const existsInSelect = Array.from(pieceSelect.options).some(o => o.value === item.name);
+  if (existsInSelect) {
+    pieceSelect.value = item.name;
+    customPieceWrap.classList.add("hidden");
+    customPieceInput.value = "";
+  } else {
+    pieceSelect.value = "__OTHER__";
+    customPieceWrap.classList.remove("hidden");
+    customPieceInput.value = item.name;
+  }
+
   material.value = item.material;
   colorPrint.value = item.colorPrint;
   qtyPrint.value = item.qtyPrint;
@@ -289,11 +571,35 @@ window.deleteItem = i => {
   }
 };
 
+function ensureCatalogContains(cat, name) {
+  const exists = catalog.some(i => i.cat === cat && i.name.toLowerCase() === name.toLowerCase());
+  if (!exists) {
+    catalog.push({ cat, name });
+    persistCatalog();
+    renderCatalog(document.getElementById("searchCatalog").value);
+    if (categorySel.value === cat) renderPieceSelect(cat);
+  }
+}
+
 form.addEventListener("submit", e => {
   e.preventDefault();
 
+  const category = categorySel.value;
+  if (!category) return alert("Seleccioná una categoría.");
+
+  let pieceName = pieceSelect.value;
+  if (!pieceName) return alert("Seleccioná una pieza.");
+
+  if (pieceName === "__OTHER__") {
+    pieceName = customPieceInput.value.trim();
+    if (!pieceName) return alert("Escribí el nombre de la pieza.");
+    // al guardar stock, también la agregamos al catálogo automáticamente
+    ensureCatalogContains(category, pieceName);
+  }
+
   const item = {
-    name: nameInput.value.trim(),
+    category,
+    name: pieceName,
     material: material.value.trim(),
     colorPrint: colorPrint.value.trim(),
     qtyPrint: +qtyPrint.value || 0,
@@ -305,7 +611,6 @@ form.addEventListener("submit", e => {
     date: new Date().toLocaleDateString("es-AR")
   };
 
-  if (!item.name) return alert("Debe ingresar una pieza válida.");
   if (!item.status) return alert("Debe seleccionar un estado.");
 
   if (editIndex !== null) {
@@ -318,11 +623,17 @@ form.addEventListener("submit", e => {
 
   localStorage.setItem("stockData", JSON.stringify(stockData));
   form.reset();
+  pieceSelect.disabled = true;
+  pieceSelect.innerHTML = `<option value="">Seleccionar categoría primero...</option>`;
+  customPieceWrap.classList.add("hidden");
+  customPieceInput.value = "";
   renderTable();
 });
 
 // === EXPORTAR CSV ===
 function exportCSV(filename, data) {
+  if (!data || data.length === 0) return alert("No hay datos para exportar.");
+
   const csvRows = [];
   const headers = Object.keys(data[0]);
   csvRows.push(headers.join(","));
@@ -355,11 +666,11 @@ function exportCSV(filename, data) {
 function exportText() {
   if (stockData.length === 0) return alert("No hay datos para exportar.");
   const fecha = new Date().toLocaleDateString("es-AR");
-  const texto = stockData.map(item => 
-`📦 Pieza: ${item.name}
+  const texto = stockData.map(item =>
+`📦 ${item.name} (${item.category || "-"})
 Material: ${item.material}
 Estado: ${item.status}
-Stock: ${item.qtyStock} unidades
+Stock: ${item.qtyStock} u.
 Color stock: ${item.colorStock}
 Impresora: ${item.printer}
 🕓 ${item.date}
@@ -380,18 +691,20 @@ ${item.observaciones ? "📝 " + item.observaciones : ""}
 
 // === BOTONES EXPORTACIÓN ===
 document.getElementById("exportStockBtn").addEventListener("click", () => {
-  if (stockData.length === 0) return alert("No hay datos en el stock para exportar.");
   exportCSV(`stock-ovix-${new Date().toLocaleDateString("es-AR")}.csv`, stockData);
 });
 document.getElementById("exportCatalogBtn").addEventListener("click", () => {
-  if (catalog.length === 0) return alert("El catálogo está vacío.");
-  const catalogData = catalog.map(c => ({ pieza: c }));
+  const catalogData = catalog
+    .slice()
+    .sort((a,b) => (a.cat + a.name).localeCompare(b.cat + b.name))
+    .map(i => ({ categoria: i.cat, pieza: i.name }));
   exportCSV(`catalogo-ovix-${new Date().toLocaleDateString("es-AR")}.csv`, catalogData);
 });
 document.getElementById("exportTextBtn").addEventListener("click", exportText);
 
 // === INICIO ===
 renderCatalog();
+renderPieceSelect(""); // inicial
 renderTable();
 </script>
 </body>
